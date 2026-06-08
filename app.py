@@ -15,7 +15,7 @@ ticker_input = st.sidebar.text_input("修改美股/ETF觀察清單:", value="SPY
 rf_rate = st.sidebar.slider("無風險利率 (%)", 0.0, 8.0, 2.0) / 100
 tickers = [t.strip().upper() for t in ticker_input.split(',') if t.strip()]
 
-# 3. 呼叫官方套件抓取數據
+# 3. 呼看官方套件抓取數據
 @st.cache_data(ttl=3600)
 def fetch_stock_data_official(ticker_list, key):
     combined_df = pd.DataFrame()
@@ -25,6 +25,7 @@ def fetch_stock_data_official(ticker_list, key):
         td = TDClient(apikey=key)
         for ticker in ticker_list:
             try:
+                # 呼叫官方 SDK API 獲取 3 年歷史日線數據
                 ts = td.time_series(symbol=ticker, interval="1day", outputsize=750, order="asc")
                 df = ts.as_pandas() # 官方快速轉換
                 if not df.empty:
@@ -33,6 +34,7 @@ def fetch_stock_data_official(ticker_list, key):
             except: pass
     except: pass
     return combined_df, success_tickers
+
 # 4. 優化算法核心數學邏輯 (Scipy)
 def portfolio_performance(weights, returns, cov_matrix):
     port_return = np.sum(returns * weights) * 252
@@ -55,7 +57,8 @@ elif not api_key:
     st.info("💡 請至左側面板輸入您的 Twelve Data API 金鑰以激活量化分析。")
 else:
     with st.spinner("🔍 正在從合規金融伺服器獲取即時數據並建立矩陣..."):
-        data, valid_tickers = fetch_stock_data_v2(tickers, api_key)
+        # 【已修正】將原先的 fetch_stock_data_v2 改為對應定義的 official 名稱
+        data, valid_tickers = fetch_stock_data_official(tickers, api_key)
         
     if data.empty:
         st.error("❌ 無法獲取歷史數據。可能原因：API Key 無效、超過每分鐘訪問次數、或代碼不正確。")
