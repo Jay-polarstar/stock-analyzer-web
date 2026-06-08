@@ -7,30 +7,20 @@ import plotly.express as px
 
 # 1. 網頁基本配置
 st.set_page_config(page_title="美股投資組合優化大腦 v3", page_icon="🧠", layout="wide")
-st.title("🧠 🇺🇸 美股資產配置最佳化優化大腦 (自動金鑰版)")
-st.caption("第二階段修復：金鑰已由內建程式碼自動帶入，免手動輸入即可執行量化分析")
+st.title("🧠 🇺🇸 美股資產配置最佳化優化大腦 (官方套件版)")
 
-# =========================================================================
-# 2. 自動金鑰與側邊欄設定 (請在下方引號內填入您在 twelvedata.com 申請的金鑰)
-# =========================================================================
-API_KEY = "您的_TWELVE_DATA_API_KEY_貼在這裡" 
-
-st.sidebar.header("🛠️ 配置面板")
+# 2. 側邊欄與 API 設定
+api_key = st.sidebar.text_input("請輸入您的 Twelve Data API Key:", type="password")
 ticker_input = st.sidebar.text_input("修改美股/ETF觀察清單:", value="SPY, QQQ, VTI, GLD, SMH, NVDA")
 rf_rate = st.sidebar.slider("無風險利率 (%)", 0.0, 8.0, 2.0) / 100
 tickers = [t.strip().upper() for t in ticker_input.split(',') if t.strip()]
 
-# 3. 呼叫官方套件抓取數據
+# 3. 呼看官方套件抓取數據
 @st.cache_data(ttl=3600)
 def fetch_stock_data_official(ticker_list, key):
     combined_df = pd.DataFrame()
     success_tickers = []
-    
-    # 防錯機制：若金鑰欄位忘記修改或留空
-    if not key or "貼在這裡" in key:
-        st.error("🔑 程式碼內的 API_KEY 尚未填入正確的金鑰！請先修改您的 GitHub app.py 檔案。")
-        return combined_df, success_tickers
-        
+    if not key: return combined_df, success_tickers
     try:
         td = TDClient(apikey=key)
         for ticker in ticker_list:
@@ -41,10 +31,8 @@ def fetch_stock_data_official(ticker_list, key):
                 if not df.empty:
                     combined_df[ticker] = pd.to_numeric(df['close'])
                     success_tickers.append(ticker)
-            except: 
-                pass
-    except: 
-        pass
+            except: pass
+    except: pass
     return combined_df, success_tickers
 
 # 4. 優化算法核心數學邏輯 (Scipy)
@@ -65,17 +53,15 @@ def max_sharpe_objective(weights, returns, cov_matrix, rf):
 # 5. 主程式觸發邏輯
 if not tickers:
     st.warning("⚠️ 請至少輸入一個有效的美股代碼！")
+elif not api_key:
+    st.info("💡 請至左側面板輸入您的 Twelve Data API 金鑰以激活量化分析。")
 else:
-    with st.spinner("🔍 正在自動連接金融伺服器獲取即時數據並建立矩陣..."):
-        # 這裡的第二個參數改為直接傳入我們在上方定義好的私密變數 API_KEY
-        data, valid_tickers = fetch_stock_data_official(tickers, API_KEY)
+    with st.spinner("🔍 正在從合規金融伺服器獲取即時數據並建立矩陣..."):
+        # 【已修正】將原先的 fetch_stock_data_v2 改為對應定義的 official 名稱
+        data, valid_tickers = fetch_stock_data_official(tickers, api_key)
         
     if data.empty:
-        # 如果使用者完全沒在 14 行修改金鑰，上面第 27 行會攔截，若走到這代表可能是頻率限制
-        if not API_KEY or "貼在這裡" in API_KEY:
-            pass
-        else:
-            st.error("❌ 無法獲取歷史數據。可能原因：您填寫的金鑰無效、超過免費版「每分鐘 8 次」的訪問次數限制，或美股代碼不正確。")
+        st.error("❌ 無法獲取歷史數據。可能原因：API Key 無效、超過每分鐘訪問次數、或代碼不正確。")
     else:
         failed_tickers = set(tickers) - set(valid_tickers)
         if failed_tickers:
