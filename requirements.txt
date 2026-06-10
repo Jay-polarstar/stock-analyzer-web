@@ -1,6 +1,8 @@
-streamlit
+yfinance
+scipy
 pandas
 numpy
-scipy
 plotly
-twelvedata
+streamlit
+requests
+lxml
